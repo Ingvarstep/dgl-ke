@@ -19,7 +19,7 @@
 
 import os, sys
 import numpy as np
-from ogb.lsc import WikiKG90MDataset, WikiKG90MEvaluator
+# from ogb.lsc import WikiKG90MDataset, WikiKG90MEvaluator
 
 def _download_and_extract(url, path, filename):
     import shutil, zipfile
