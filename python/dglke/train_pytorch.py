@@ -39,8 +39,8 @@ import dgl
 from dgl.contrib import KVClient
 import dgl.backend as F
 
-from .dataloader import EvalDataset
-from .dataloader import get_dataset
+from dataloader import EvalDataset
+from dataloader import get_dataset
 
 class KGEClient(KVClient):
     """User-defined kvclient for DGL-KGE
