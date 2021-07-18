@@ -21,22 +21,22 @@ import os
 import logging
 import time
 
-from .dataloader import EvalDataset, TrainDataset, NewBidirectionalOneShotIterator
-from .dataloader import get_dataset
+from dataloader import EvalDataset, TrainDataset, NewBidirectionalOneShotIterator
+from dataloader import get_dataset
 
-from .utils import get_compatible_batch_size, save_model, CommonArgParser
+from utils import get_compatible_batch_size, save_model, CommonArgParser
 
 backend = os.environ.get('DGLBACKEND', 'pytorch')
 if backend.lower() == 'mxnet':
     import multiprocessing as mp
-    from .train_mxnet import load_model
-    from .train_mxnet import train
-    from .train_mxnet import test
+    from train_mxnet import load_model
+    from train_mxnet import train
+    from train_mxnet import test
 else:
     import torch.multiprocessing as mp
-    from .train_pytorch import load_model
-    from .train_pytorch import train, train_mp
-    from .train_pytorch import test, test_mp
+    from train_pytorch import load_model
+    from train_pytorch import train, train_mp
+    from train_pytorch import test, test_mp
 
 class ArgParser(CommonArgParser):
     def __init__(self):
