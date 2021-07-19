@@ -692,7 +692,7 @@ class ConvEScore(nn.Module):
                             head_emb.view(head_emb.shape[0], 1, self.emb_dim1, self.emb_dim2)
 
         rel_embedded = th.ones(rel_emb.shape[0], head_emb.shape[0], self.emb_dim1, self.emb_dim2) * \
-           rel_emb.view(rel_emb.shape[0], 1, emb_dim1, emb_dim2)
+           rel_emb.view(rel_emb.shape[0], 1, self.emb_dim1, self.emb_dim2)
         stacked_inputs = th.cat([e1_embedded.view(-1, 1, self.emb_dim1, self.emb_dim2), \
                                       rel_embedded.transpose(0,1).reshape(-1, 1, self.emb_dim1, self.emb_dim2)], -2)
 
@@ -708,7 +708,7 @@ class ConvEScore(nn.Module):
         x = self.bn2(x)
         x = functional.relu(x).view(head_emb.shape[0], rel_emb.shape[0], -1)
 
-        score = (head_emb * rel_emb).unsqueeze(2) * tail_emb.unsqueeze(0).unsqueeze(0)
+        score = x * tail_emb.unsqueeze(0).unsqueeze(0)
 
         return th.sum(score, dim=-1)
 
