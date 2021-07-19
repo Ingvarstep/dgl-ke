@@ -25,6 +25,7 @@ Knowledge Graph Embedding Model
 5. DistMult
 6. ComplEx
 7. RotatE
+8. ConvE
 """
 import os
 from abc import abstractmethod, ABCMeta
@@ -953,6 +954,19 @@ class RotatEModel(KGEModel):
         hidden_dim = entity_dim // 2
         emb_init = (self._gamma + EMB_INIT_EPS) / hidden_dim
         self._score_func.emb_init = emb_init
+
+class ConvEModel(KGEModel):
+    """ ConvE Model
+    """
+    def __init__(self, device, emb_dim):
+        model_name = 'ConvE'
+        score_func = ConvEScore(emb_dim)
+        super(ConvEModel, self).__init__(device, model_name, score_func)
+
+    def load(self, model_path):
+        super(ConvEModel, self).load(model_path)
+        self._score_func.relation_dim = self._relation_emb.emb.shape[1]
+        self._score_func.entity_dim = self._entity_emb.emb.shape[1]
 
 class GNNModel(BasicGEModel):
     """ Basic GNN Model
