@@ -21,8 +21,8 @@ import os
 import time
 import argparse
 
-from .utils import load_model_config, load_raw_triplet_data, load_triplet_data
-from .models.infer import ScoreInfer
+from utils import load_model_config, load_raw_triplet_data, load_triplet_data
+from models.infer import ScoreInfer
 
 class ArgParser(argparse.ArgumentParser):
     def __init__(self):
