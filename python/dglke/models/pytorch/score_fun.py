@@ -688,10 +688,10 @@ class ConvEScore(nn.Module):
 
     def infer(self, head_emb, rel_emb, tail_emb):
  
-        e1_embedded = torch.ones(head_emb.shape[0], rel_emb.shape[0], self.emb_dim1, self.emb_dim2) * \
+        e1_embedded = th.ones(head_emb.shape[0], rel_emb.shape[0], self.emb_dim1, self.emb_dim2) * \
                             head_emb.view(head_emb.shape[0], 1, self.emb_dim1, self.emb_dim2)
 
-        rel_embedded = torch.ones(rel_emb.shape[0], head_emb.shape[0], self.emb_dim1, self.emb_dim2) * \
+        rel_embedded = th.ones(rel_emb.shape[0], head_emb.shape[0], self.emb_dim1, self.emb_dim2) * \
            rel_emb.view(rel_emb.shape[0], 1, emb_dim1, emb_dim2)
         stacked_inputs = th.cat([e1_embedded.view(-1, 1, self.emb_dim1, self.emb_dim2), \
                                       rel_embedded.transpose(0,1).reshape(-1, 1, self.emb_dim1, self.emb_dim2)], -2)
