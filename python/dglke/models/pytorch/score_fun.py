@@ -639,3 +639,155 @@ class SimplEScore(nn.Module):
                 score = th.clamp(tmp, -20, 20)
                 return score
             return fn
+
+class ConvEScore(nn.Module):
+    """ConvEScore score function
+    Paper link: https://arxiv.org/abs/1707.01476
+    """
+    def __init__(self, emb_dim):
+        super(ConvEScore, self).__init__()
+        self.inp_drop = th.nn.Dropout(0.25)
+        self.hidden_drop = th.nn.Dropout(0.25)
+        self.feature_map_drop = th.nn.Dropout2d(0.25)
+        self.emb_dim0 = emb_dim
+        self.emb_dim1 = int(self.emb_dim0*0.1)
+        self.emb_dim2 = self.emb_dim0 // self.emb_dim1
+
+        self.conv1 = th.nn.Conv2d(1, 32, (3, 3), 1, 0, bias=True)
+        self.hidden_size = (self.emb_dim1-1)*(self.emb_dim2-2)*64
+        self.bn0 = th.nn.BatchNorm2d(1)
+        self.bn1 = th.nn.BatchNorm2d(32)
+        self.bn2 = th.nn.BatchNorm1d(self.emb_dim0)
+        # self.register_parameter('b', th.nn.parameter.Parameter(th.zeros(num_entities)))
+        self.fc = th.nn.Linear(self.hidden_size,self.emb_dim0)
+
+    def edge_func(self, edges):
+        head = edges.src['emb']
+        tail = edges.dst['emb']
+        rel = edges.data['emb']
+
+        e1_embedded= head.view(-1, 1, self.emb_dim1, self.emb_dim2)
+        rel_embedded = rel.view(-1, 1, self.emb_dim1, self.emb_dim2)
+
+        stacked_inputs = th.cat([e1_embedded, rel_embedded], 2)
+
+        stacked_inputs = self.bn0(stacked_inputs)
+        x= self.inp_drop(stacked_inputs)
+        x= self.conv1(x)
+        x= self.bn1(x)
+        x= functional.relu(x)
+        x = self.feature_map_drop(x)
+        x = x.view(x.shape[0], -1)
+        x = self.fc(x)
+        x = self.hidden_drop(x)
+        x = self.bn2(x)
+        x = functional.relu(x)
+        score = x * tail
+        # TODO: check if there exists minus sign and if gamma should be used here(jin)
+        return {'score': th.sum(score, dim=-1)}
+
+    def infer(self, head_emb, rel_emb, tail_emb):
+ 
+        e1_embedded = torch.ones(head_emb.shape[0], rel_emb.shape[0], self.emb_dim1, self.emb_dim2) * \
+                            head_emb.view(head_emb.shape[0], 1, self.emb_dim1, self.emb_dim2)
+
+        rel_embedded = torch.ones(rel_emb.shape[0], head_emb.shape[0], self.emb_dim1, self.emb_dim2) * \
+           rel_emb.view(rel_emb.shape[0], 1, emb_dim1, emb_dim2)
+        stacked_inputs = th.cat([e1_embedded.view(-1, 1, self.emb_dim1, self.emb_dim2), \
+                                      rel_embedded.transpose(0,1).reshape(-1, 1, self.emb_dim1, self.emb_dim2)], -2)
+
+        stacked_inputs = self.bn0(stacked_inputs)
+        x= self.inp_drop(stacked_inputs)
+        x= self.conv1(x)
+        x= self.bn1(x)
+        x= functional.relu(x)
+        x = self.feature_map_drop(x)
+        x = x.view(x.shape[0], -1)
+        x = self.fc(x)
+        x = self.hidden_drop(x)
+        x = self.bn2(x)
+        x = functional.relu(x).view(head_emb.shape[0], rel_emb.shape[0], -1)
+
+        score = (head_emb * rel_emb).unsqueeze(2) * tail_emb.unsqueeze(0).unsqueeze(0)
+
+        return th.sum(score, dim=-1)
+
+    def prepare(self, g, gpu_id, trace=False):
+        pass
+
+    def create_neg_prepare(self, neg_head):
+        def fn(rel_id, num_chunks, head, tail, gpu_id, trace=False):
+            return head, tail
+
+        return fn
+
+    def update(self, gpu_id=-1):
+        pass
+
+    def reset_parameters(self):
+        pass
+
+    def save(self, path, name):
+        pass
+
+    def load(self, path, name):
+        pass
+
+    def forward(self, g):
+        g.apply_edges(lambda edges: self.edge_func(edges))
+
+
+    def create_neg(self, neg_head):
+        if neg_head:
+            def fn(heads, relations, tails, num_chunks, chunk_size, neg_sample_size):
+                hidden_dim = heads.shape[1]
+                heads = heads.reshape(num_chunks, neg_sample_size, hidden_dim)
+                heads = th.transpose(heads, 1, 2)
+                tail_embedded= tails.view(-1, 1, self.emb_dim1, self.emb_dim2)
+                rel_embedded = relations.view(-1, 1, self.emb_dim1, self.emb_dim2)
+
+                stacked_inputs = th.cat([tail_embedded, rel_embedded], -2)
+
+                stacked_inputs = self.bn0(stacked_inputs)
+                x= self.inp_drop(stacked_inputs)
+                x= self.conv1(x)
+                x= self.bn1(x)
+                x= functional.relu(x)
+                x = self.feature_map_drop(x)
+                x = x.view(x.shape[0], -1)
+                x = self.fc(x)
+                x = self.hidden_drop(x)
+                x = self.bn2(x)
+                x = functional.relu(x)
+                tmp = x.reshape(num_chunks, chunk_size, hidden_dim)
+
+                return th.bmm(tmp, heads)
+
+            return fn
+        else:
+            def fn(heads, relations, tails, num_chunks, chunk_size, neg_sample_size):
+                hidden_dim = tails.shape[1]
+                tails = tails.reshape(num_chunks, neg_sample_size, hidden_dim)
+                tails = th.transpose(tails, 1, 2)
+                
+                head_embedded= heads.view(-1, 1, self.emb_dim1, self.emb_dim2)
+                rel_embedded = relations.view(-1, 1, self.emb_dim1, self.emb_dim2)
+
+                stacked_inputs = th.cat([head_embedded, rel_embedded], -2)
+
+                stacked_inputs = self.bn0(stacked_inputs)
+                x= self.inp_drop(stacked_inputs)
+                x= self.conv1(x)
+                x= self.bn1(x)
+                x= functional.relu(x)
+                x = self.feature_map_drop(x)
+                x = x.view(x.shape[0], -1)
+                x = self.fc(x)
+                x = self.hidden_drop(x)
+                x = self.bn2(x)
+                x = functional.relu(x)
+                tmp = x.reshape(num_chunks, chunk_size, hidden_dim)
+              
+                return th.bmm(tmp, tails)
+
+            return fn
